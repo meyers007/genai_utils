@@ -108,7 +108,7 @@ def esVectorSearch( retreiver, q, k=10):
         return ret
 
 @webapi("/gpt/esSearchIndex/")
-def esSearchIndex(request, index_name, query, model="llama3.2", user="", es_url="", 
+def esSearchIndex(request, index_name, query, model="all-minilm:L6-v2", user="", es_url="", 
                     es_user="", es_pass="", k=10, rank=1, **kwargs):
 
     #print(f"\n{locals()}\n")
@@ -122,6 +122,9 @@ def esSearchIndex(request, index_name, query, model="llama3.2", user="", es_url=
     embed = getEmbedding(model=model) 
 
     
+    #if not os.path.exists(os.path.expanduser("~/.cache/RERANKER/")):
+    #    print(f"**** Ranker cache does not exist ****")
+    #    return ret
     if ( rank):
         v = es_retriever(es, index=index_name, embed=embed, k=k*2)
         docs = v.invoke(query)
@@ -141,22 +144,39 @@ def esSearchIndex(request, index_name, query, model="llama3.2", user="", es_url=
         ret.append(dict(page_content=d.page_content, metadata=d.metadata))
     return ret
 
+# ---------------------------------------------------------------------------------------
+def format(d, show=1):
+    from IPython.display import HTML
+    m=d['metadata']
+    page = m['page'] if "page" in m  else "?"
+    html=f'''
+<h3>Document, {page} : {m['source']} </h3> 
 
-def esTextSearch(q, k=10, index="test", url = ES_URL, user=ES_USER, pw= ES_PW):
+{d['page_content'].replace("\n", "<br>")}
+<hr/>
+'''
+    if(show):
+        display(HTML(html))
+    return html
+
+# ---------------------------------------------------------------------------------------
+
+@webapi("/gpt/esTextSearch/")
+def esTextSearch(query, k=10, index_name="test", url = ES_URL, user=ES_USER, pw= ES_PW):
     esclient = Elasticsearch(url, basic_auth = (user, pw))
-    res = esclient.search(index=index,  q=q, size=k)
+    res = esclient.search(index=index_name,  q=query, size=k)
 
     ret = []
     for i,r in enumerate(res['hits']['hits']):
         pc = r['_source']['text']
         mt = r['_source']['metadata']
-        ret.append(Document(page_content = pc, metadata=mt))
+        ret.append(dict(page_content = pc, metadata=mt))
         #print(i, " ==>", )
     return ret
 # ---------------------------------------------------------------------------------------
 def rerank(q, ret):
     from flashrank import (Ranker, RerankRequest,)
-
+    
     ranker = Ranker("ms-marco-MiniLM-L-12-v2", os.path.expanduser("~/.cache/RERANKER/"))
     rerankrequest = RerankRequest(
         query=q, passages=[{"text": d.page_content, "metadata": d.metadata} for d in ret]
@@ -208,6 +228,8 @@ def indexFromFolder(folder="", force=0, index="test", recurse=0, just_show=0,
         except Exception as e:
             logger.error(f"{f} failed to index {e}\n================")
             pass
+        
+    esCountIndex(index="test",url=ES_URL, user=ES_USER, pw= ES_PW)
     return iFiles
 #-----------------------------------------------------------------------------------
 sysargs=None
@@ -222,6 +244,7 @@ def addargs(argv=sys.argv):
     p.add_argument('-w', '--es_pass',type=str, required=False, default=ES_PW,   help="elastic password")
     p.add_argument('-f', '--force',  required=False, default=False, action='store_true', help="force")
     p.add_argument('-j', '--just' ,  required=False, default=False, action='store_true', help="Just show - do not index")
+    p.add_argument('-r', '--recurse',required=False, default=False, action='store_true', help="Recurse though the folder")
 
     sysargs=p.parse_args(argv[1:])
     return sysargs
@@ -231,7 +254,7 @@ if __name__ == '__main__' and not colabexts_utils.inJupyter():
     a = addargs()
     logger.info(f"Indexing  {sysargs}")
 
-    indexFromFolder(folder=a.path, force=a.force, index=a.index, url=a.es_url, 
+    indexFromFolder(folder=a.path, force=a.force, index=a.index, url=a.es_url, recurse=a.recurse,
                         user=a.es_user, pw= a.es_pass, model=a.model)
 
 #    indexFromFolder(sys.argv[1])
