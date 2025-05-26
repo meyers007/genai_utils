@@ -12,7 +12,7 @@ setup(name='genai_utils',
       packages = ['genai_utils'],
       package_data={'genai_utils':['*']},
       zip_safe=False,
-      install_requires=['torch'],
+      install_requires=['torch', 'langchain_elasticsearch'],
       classifiers=[
           # How mature is this project? Common values are
           #   3 - Alpha

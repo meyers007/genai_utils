@@ -1,0 +1,244 @@
+#!/usr/bin/env python 
+
+'''
+RUN as 'python -m genai_utils.db_elastic -p "
+'''
+
+import os, sys, logging, argparse, glob, hashlib
+
+from langchain_ollama import OllamaEmbeddings
+from langchain_core.documents import Document
+from langchain_core.retrievers import BaseRetriever
+from langchain_elasticsearch import (
+    BM25Strategy,
+    DenseVectorStrategy,
+    ElasticsearchStore,
+)
+
+from elasticsearch import Elasticsearch
+from mangorest.mango import webapi
+from genai_utils import pdf_parser
+from genai_utils import extract_docs
+
+logger = logging.getLogger( "gpt" )
+
+ES_URL, ES_USER, ES_PW  = "http://localhost:9200", "elastic", "elastic"
+
+from genai_utils import config
+
+ES_CNX= dict(es_url= ES_URL, es_user= ES_USER, es_password=ES_PW)
+
+
+_ES_STARTEGIES = {
+    "hnsw":     DenseVectorStrategy(), 
+    "bm25":     BM25Strategy(),
+    "hybrid":   DenseVectorStrategy(hybrid=True, rrf=False),
+    "sparse":   None,
+    "exact":    None,
+}
+# ---------------------------------------------------------------------------------------
+def esDeleteIndex(index="test", url=ES_URL, user=ES_USER, pw= ES_PW, **kwargs):
+    esclient = Elasticsearch(url, basic_auth = (user, pw))
+    esclient.info()
+    try:
+        esclient.indices.delete(index=index)
+    except:
+        pass
+# ---------------------------------------------------------------------------------------
+def esCreateIndex(index="test", url=ES_URL, user=ES_USER, pw= ES_PW, **kwargs):
+    esclient = Elasticsearch(url, basic_auth = (user, pw))
+    esclient.indices.create(index=index)
+# ---------------------------------------------------------------------------------------
+def esCountIndex(index="test", url=ES_URL, user=ES_USER, pw= ES_PW, **kwargs):
+    doc_count = 0
+    try:
+        esclient = Elasticsearch(url, basic_auth = (user, pw))
+        doc_count = esclient.count(index=index)
+    except:
+        pass
+    print(f"Total documents in index '{index}': {doc_count}")
+    return doc_count
+# ---------------------------------------------------------------------------------------
+def getEmbedding(model="all-minilm:L6-v2", base_url = "http://127.0.0.1:11434/"):
+    e = OllamaEmbeddings( model = model, base_url =base_url )
+    return e
+# ---------------------------------------------------------------------------------------
+def getbyID( index="test",id="", url=ES_URL, user=ES_USER, pw= ES_PW, **kwargs):
+    es_cnx = dict(es_url= ES_URL, es_user=ES_USER, es_password=ES_PW)
+    doc = ElasticsearchStore.get_by_ids(ids=[id]
+            **es_cnx,
+            index_name=index)
+    return doc
+# ---------------------------------------------------------------------------------------
+def add_to_es( docs: list[Document], es_cnx: dict, index: str, embed, strategy= "hnsw" ):
+    strat = _ES_STARTEGIES[strategy]
+    vectorstore = None
+    for i in range(0, len(docs), 20000):
+        docsWithID = docs[i : min(i + 20000, len(docs))]
+        for d in docsWithID:
+            h = hashlib.md5(d.page_content.encode())
+            d.id = h.hexdigest()
+        
+        vectorstore = ElasticsearchStore.from_documents(
+            documents=docsWithID,
+            embedding=embed,
+            **es_cnx,
+            index_name=index,
+            bulk_kwargs={
+                "chunk_size": 100,
+            },
+            strategy=strat,
+        )
+    return vectorstore
+
+# ---------------------------------------------------------------------------------------
+def es_retriever( es_cnx: dict, index: str, embed, strategy="hnsw", k= 10 ):
+    strat = _ES_STARTEGIES[strategy]
+
+    v = ElasticsearchStore( **es_cnx, embedding=embed, index_name=index, strategy=strat)
+    return v.as_retriever(search_kwargs={"k": k})
+
+def esVectorSearch( retreiver, q, k=10):
+        ret = retreiver.as_retriever(search_kwargs={"k": k}).invoke(q)
+        
+        h = {r.page_content:r for r in ret}
+        if len(h) != len(ret):
+            ret = [v for v in h.values()]
+            
+        return ret
+
+@webapi("/gpt/esSearchIndex/")
+def esSearchIndex(request, index_name, query, model="llama3.2", user="", es_url="", 
+                    es_user="", es_pass="", k=10, rank=1, **kwargs):
+
+    #print(f"\n{locals()}\n")
+        
+    if (not es_url):
+        es = dict(es_url= ES_URL, es_user=ES_USER, es_password=ES_PW)
+    else:
+        es = dict(es_url= es_url, es_user=es_user, es_password=es_pass)
+
+    #model = "llama3.2" #lets force the embedding for now
+    embed = getEmbedding(model=model) 
+
+    
+    if ( rank):
+        v = es_retriever(es, index=index_name, embed=embed, k=k*2)
+        docs = v.invoke(query)
+        if (len(docs)):
+            ranked = rerank( query, docs)
+            docs = [Document(page_content=r['text'], metadata=r['metadata']) for r in ranked[0:k]]
+    else:
+        v = es_retriever(es, index=index_name, embed=embed, k=k)
+        docs = v.invoke(query)
+
+    h = {r.page_content: r for r in docs}
+    if len(h) != len(docs):
+        docs = [v for v in h.values()]
+    
+    ret = []
+    for d in docs:
+        ret.append(dict(page_content=d.page_content, metadata=d.metadata))
+    return ret
+
+
+def esTextSearch(q, k=10, index="test", url = ES_URL, user=ES_USER, pw= ES_PW):
+    esclient = Elasticsearch(url, basic_auth = (user, pw))
+    res = esclient.search(index=index,  q=q, size=k)
+
+    ret = []
+    for i,r in enumerate(res['hits']['hits']):
+        pc = r['_source']['text']
+        mt = r['_source']['metadata']
+        ret.append(Document(page_content = pc, metadata=mt))
+        #print(i, " ==>", )
+    return ret
+# ---------------------------------------------------------------------------------------
+def rerank(q, ret):
+    from flashrank import (Ranker, RerankRequest,)
+
+    ranker = Ranker("ms-marco-MiniLM-L-12-v2", os.path.expanduser("~/.cache/RERANKER/"))
+    rerankrequest = RerankRequest(
+        query=q, passages=[{"text": d.page_content, "metadata": d.metadata} for d in ret]
+    )
+    reranked = ranker.rerank(rerankrequest)
+    return reranked
+# ---------------------------------------------------------------------------------------
+# This is standing by itself - should be called by indexFromFolder
+# can be multi tasked 
+def loadES( model="all-minilm:L6-v2", index="", filename = "/Users/e346104/Desktop/data/LLM/sample.pdf",
+           es_url=ES_URL , es_user=ES_USER, es_password=ES_PW ):
+    
+    docs = extract_docs.extractDocs(file=filename)
+    if (not docs):
+        return docs
+    embed= getEmbedding(model)
+    es = dict(es_url=es_url , es_user=es_user, es_password=es_password)
+    v = add_to_es(docs, es, index=index, embed=embed)
+
+    return docs
+
+# ---------------------------------------------------------------------------------------
+def indexFromFolder(folder="", force=0, index="test", recurse=0, just_show=0,
+                        url=ES_URL, user=ES_USER, pw= ES_PW, model="all-minilm:L6-v2"):
+    folder = os.path.expanduser(folder) + "/**"
+    files = [f for f in glob.glob(folder, recursive=recurse) if os.path.isfile(f)]
+
+    logger.info(f"Indexing files from {folder}: found {len(files)} files.")
+
+    iFiles = []
+    for f in files:
+        bn = os.path.basename(f)
+        dn = os.path.dirname(f)
+        marker = f"/tmp/gpt/{dn}/.{bn}.{index}.indexed"
+
+        if f.endswith(".indexed") or (os.path.exists( marker) and not force):
+            continue;
+
+        try:
+            if ( not just_show):
+                pass
+                logger.info(f"Indexing '{f}'")        
+                loadES(model, index, f, url, user, pw)
+                os.makedirs(os.path.dirname(marker), exist_ok=True)
+                open(marker, "w").write("")
+                iFiles.append(f)
+            else:
+                print(f"Not indexing '{f}'\n======================")
+        except Exception as e:
+            logger.error(f"{f} failed to index {e}\n================")
+            pass
+    return iFiles
+#-----------------------------------------------------------------------------------
+sysargs=None
+def addargs(argv=sys.argv):
+    global sysargs
+    p = argparse.ArgumentParser(f"{os.path.basename(argv[0])}:")
+    p.add_argument('-p', '--path',   type=str, required=True, help="path to look for files")
+    p.add_argument('-i', '--index',  type=str, required=True, help="Elastic Search index")
+    p.add_argument('-m', '--model',  type=str, required=False, default="all-minilm:L6-v2", help="embedding model")
+    p.add_argument('-e', '--es_url', type=str, required=False, default=ES_URL,  help="elastic URL")
+    p.add_argument('-u', '--es_user',type=str, required=False, default=ES_USER, help="elastic user")
+    p.add_argument('-w', '--es_pass',type=str, required=False, default=ES_PW,   help="elastic password")
+    p.add_argument('-f', '--force',  required=False, default=False, action='store_true', help="force")
+    p.add_argument('-j', '--just' ,  required=False, default=False, action='store_true', help="Just show - do not index")
+
+    sysargs=p.parse_args(argv[1:])
+    return sysargs
+
+from colabexts import utils as colabexts_utils
+if __name__ == '__main__' and not colabexts_utils.inJupyter():
+    a = addargs()
+    logger.info(f"Indexing  {sysargs}")
+
+    indexFromFolder(folder=a.path, force=a.force, index=a.index, url=a.es_url, 
+                        user=a.es_user, pw= a.es_pass, model=a.model)
+
+#    indexFromFolder(sys.argv[1])
+# index, model = "test2", "all-minilm:L6-v2"
+# index, model = "test3", "llama3.2:latest"
+
+# esDeleteIndex(index)
+# esCreateIndex(index)
+
+# loadES(model, index);
