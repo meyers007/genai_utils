@@ -187,9 +187,11 @@ def rerank(q, ret):
 # This is standing by itself - should be called by indexFromFolder
 # can be multi tasked 
 def loadES( model="all-minilm:L6-v2", index="", filename = "/Users/e346104/Desktop/data/LLM/sample.pdf",
-           es_url=ES_URL , es_user=ES_USER, es_pass=ES_PW ):
+           es_url=ES_URL , es_user=ES_USER, es_pass=ES_PW, docs=[] ):
     
-    docs = extract_docs.extractDocs(file=filename)
+    if(not docs and filename):
+        docs = extract_docs.extractDocs(file=filename)
+        
     if (not docs):
         return docs
     embed= getEmbedding(model)
