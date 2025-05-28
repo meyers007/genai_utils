@@ -37,22 +37,22 @@ _ES_STARTEGIES = {
     "exact":    None,
 }
 # ---------------------------------------------------------------------------------------
-def esDeleteIndex(index="test", url=ES_URL, user=ES_USER, pw= ES_PW, **kwargs):
-    esclient = Elasticsearch(url, basic_auth = (user, pw))
+def esDeleteIndex(index="test", es_url=ES_URL, es_user=ES_USER, es_pass= ES_PW, **kwargs):
+    esclient = Elasticsearch(es_url, basic_auth = (es_user, es_pass))
     esclient.info()
     try:
         esclient.indices.delete(index=index)
     except:
         pass
 # ---------------------------------------------------------------------------------------
-def esCreateIndex(index="test", url=ES_URL, user=ES_USER, pw= ES_PW, **kwargs):
-    esclient = Elasticsearch(url, basic_auth = (user, pw))
+def esCreateIndex(index="test", es_url=ES_URL, es_user=ES_USER, es_pass= ES_PW, **kwargs):
+    esclient = Elasticsearch(es_url, basic_auth = (es_user, es_pass))
     esclient.indices.create(index=index)
 # ---------------------------------------------------------------------------------------
-def esCountIndex(index="test", url=ES_URL, user=ES_USER, pw= ES_PW, **kwargs):
+def esCountIndex(index="test", es_url=ES_URL, es_user=ES_USER, es_pass= ES_PW, **kwargs):
     doc_count = 0
     try:
-        esclient = Elasticsearch(url, basic_auth = (user, pw))
+        esclient = Elasticsearch(es_url, basic_auth = (es_user, es_pass))
         doc_count = esclient.count(index=index)
     except:
         pass
@@ -63,8 +63,8 @@ def getEmbedding(model="all-minilm:L6-v2", base_url = "http://127.0.0.1:11434/")
     e = OllamaEmbeddings( model = model, base_url =base_url )
     return e
 # ---------------------------------------------------------------------------------------
-def getbyID( index="test",id="", url=ES_URL, user=ES_USER, pw= ES_PW, **kwargs):
-    es_cnx = dict(es_url= ES_URL, es_user=ES_USER, es_password=ES_PW)
+def getbyID( index="test",id="", es_url=ES_URL, es_user=ES_USER, es_pass= ES_PW, **kwargs):
+    es_cnx = dict(es_url= es_url, es_user=es_user, es_password=es_pass)
     doc = ElasticsearchStore.get_by_ids(ids=[id]
             **es_cnx,
             index_name=index)
@@ -108,8 +108,8 @@ def esVectorSearch( retreiver, q, k=10):
         return ret
 
 @webapi("/gpt/esSearchIndex/")
-def esSearchIndex(request, index_name, query, model="all-minilm:L6-v2", user="", es_url="", 
-                    es_user="", es_pass="", k=10, rank=1, **kwargs):
+def esSearchIndex(request, index, query, model="all-minilm:L6-v2", user="", es_url=ES_URL, 
+                    es_user=ES_URL, es_pass=ES_PW, k=10, rank=1, **kwargs):
 
     #print(f"\n{locals()}\n")
         
@@ -126,13 +126,13 @@ def esSearchIndex(request, index_name, query, model="all-minilm:L6-v2", user="",
     #    print(f"**** Ranker cache does not exist ****")
     #    return ret
     if ( rank):
-        v = es_retriever(es, index=index_name, embed=embed, k=k*2)
+        v = es_retriever(es, index=index, embed=embed, k=k*2)
         docs = v.invoke(query)
         if (len(docs)):
             ranked = rerank( query, docs)
             docs = [Document(page_content=r['text'], metadata=r['metadata']) for r in ranked[0:k]]
     else:
-        v = es_retriever(es, index=index_name, embed=embed, k=k)
+        v = es_retriever(es, index=index, embed=embed, k=k)
         docs = v.invoke(query)
 
     h = {r.page_content: r for r in docs}
@@ -162,9 +162,9 @@ def format(d, show=1):
 # ---------------------------------------------------------------------------------------
 
 @webapi("/gpt/esTextSearch/")
-def esTextSearch(query, k=10, index_name="test", url = ES_URL, user=ES_USER, pw= ES_PW):
-    esclient = Elasticsearch(url, basic_auth = (user, pw))
-    res = esclient.search(index=index_name,  q=query, size=k)
+def esTextSearch(query, k=10, index="test", es_url = ES_URL, es_user=ES_USER, es_pass= ES_PW):
+    esclient = Elasticsearch(es_url, basic_auth = (es_user, es_pass))
+    res = esclient.search(index=index,  q=query, size=k)
 
     ret = []
     for i,r in enumerate(res['hits']['hits']):
@@ -187,20 +187,20 @@ def rerank(q, ret):
 # This is standing by itself - should be called by indexFromFolder
 # can be multi tasked 
 def loadES( model="all-minilm:L6-v2", index="", filename = "/Users/e346104/Desktop/data/LLM/sample.pdf",
-           es_url=ES_URL , es_user=ES_USER, es_password=ES_PW ):
+           es_url=ES_URL , es_user=ES_USER, es_pass=ES_PW ):
     
     docs = extract_docs.extractDocs(file=filename)
     if (not docs):
         return docs
     embed= getEmbedding(model)
-    es = dict(es_url=es_url , es_user=es_user, es_password=es_password)
+    es = dict(es_url=es_url , es_user=es_user, es_password=es_pass)
     v = add_to_es(docs, es, index=index, embed=embed)
 
     return docs
 
 # ---------------------------------------------------------------------------------------
 def indexFromFolder(folder="", force=0, index="test", recurse=0, just_show=0,
-                        url=ES_URL, user=ES_USER, pw= ES_PW, model="all-minilm:L6-v2"):
+                        es_url=ES_URL, es_user=ES_USER, es_pass= ES_PW, model="all-minilm:L6-v2"):
     folder = os.path.expanduser(folder) + "/**"
     files = [f for f in glob.glob(folder, recursive=recurse) if os.path.isfile(f)]
 
@@ -219,7 +219,7 @@ def indexFromFolder(folder="", force=0, index="test", recurse=0, just_show=0,
             if ( not just_show):
                 pass
                 logger.info(f"Indexing '{f}'")        
-                loadES(model, index, f, url, user, pw)
+                loadES(model, index, f, es_url, es_user, es_pass)
                 os.makedirs(os.path.dirname(marker), exist_ok=True)
                 open(marker, "w").write("")
                 iFiles.append(f)
@@ -254,8 +254,8 @@ if __name__ == '__main__' and not colabexts_utils.inJupyter():
     a = addargs()
     logger.info(f"Indexing  {sysargs}")
 
-    indexFromFolder(folder=a.path, force=a.force, index=a.index, url=a.es_url, recurse=a.recurse,
-                        user=a.es_user, pw= a.es_pass, model=a.model)
+    indexFromFolder(folder=a.path, force=a.force, index=a.index, es_url=a.es_url, recurse=a.recurse,
+                        es_user=a.es_user, es_pass= a.es_pass, model=a.model)
 
 #    indexFromFolder(sys.argv[1])
 # index, model = "test2", "all-minilm:L6-v2"
