@@ -206,7 +206,7 @@ def indexFromFolder(folder="", force=0, index="test", recurse=0, just_show=0,
     folder = os.path.expanduser(folder) + "/**"
     files = [f for f in glob.glob(folder, recursive=recurse) if os.path.isfile(f)]
 
-    logger.info(f"Indexing files from {folder}: found {len(files)} files.")
+    logger.info(f"URL: {es_url} Folder: {folder}: found {len(files)} files.")
 
     iFiles = []
     for f in files:
@@ -220,7 +220,7 @@ def indexFromFolder(folder="", force=0, index="test", recurse=0, just_show=0,
         try:
             if ( not just_show):
                 pass
-                logger.info(f"Indexing '{f}'")        
+                logger.info(f"Indexing '{f}' {es_url}")        
                 loadES(model, index, f, es_url, es_user, es_pass)
                 os.makedirs(os.path.dirname(marker), exist_ok=True)
                 open(marker, "w").write("")
@@ -231,7 +231,7 @@ def indexFromFolder(folder="", force=0, index="test", recurse=0, just_show=0,
             logger.error(f"{f} failed to index {e}\n================")
             pass
         
-    esCountIndex(index="test",url=ES_URL, user=ES_USER, pw= ES_PW)
+    esCountIndex(index=index, es_url=es_url, user=es_user, pw= es_pass)
     return iFiles
 #-----------------------------------------------------------------------------------
 sysargs=None
