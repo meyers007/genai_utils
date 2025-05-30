@@ -58,7 +58,7 @@ def indexImagesFromPDF(file, savedir="/tmp/genai_utils/", verbose =0):
             print(ret['texts'][i][0:128])
     return ret, files
     
-def index_directory(directory, outf= {}, recurse=0):
+def index_directory(directory, outf= {}, savedir="/tmp/genai_utils/", recurse=0):
     pngs = glob.glob(os.path.join(directory, '**/*.png') , recursive=recurse)
     jpgs = glob.glob(os.path.join(directory, '**/*.jpg') , recursive=recurse)
     jpes = glob.glob(os.path.join(directory, '**/*.jpeg'), recursive=recurse)
