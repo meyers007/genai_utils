@@ -6,6 +6,7 @@ import io, base64
 from PIL import Image
 from IPython.display import HTML
 from genai_utils.describe_image import describe_image
+from genai_utils import db_elastic
 
 def _extractImagesFromPDF(file=None, **kwargs):
     assert file.endswith("pdf"), "Called with non PDF File!!"
@@ -15,21 +16,24 @@ def _extractImagesFromPDF(file=None, **kwargs):
     with pdfplumber.open(file) as doc:
         for pageNumber, page in enumerate(doc.pages):
             images = page.images
-            txt.append(page.extract_text())
             for image_index, img in enumerate(images):
-                bbox = (img['x0'], img['top'], img['x1'], img['bottom'])
-                image = page.within_bbox(bbox).to_image()
-                pil_image = image.original
-                imageRGB = pil_image.convert("RGB")
-                b = BytesIO()
-                imageRGB.save(b, format='PNG')
-                b.seek(0)
-                br= b.read()
-                b64Image = base64.b64encode(br).decode("utf-8")
-                url = "data:image/jpg;base64, " + b64Image
-                #img = f"<img src='{url}' >"
-                #display (HTML(img))
-                ret[url] = 1
+                try:
+                    bbox = (img['x0'], img['top'], img['x1'], img['bottom'])
+                    image = page.within_bbox(bbox).to_image()
+                    pil_image = image.original
+                    imageRGB = pil_image.convert("RGB")
+                    b = BytesIO()
+                    imageRGB.save(b, format='PNG')
+                    b.seek(0)
+                    br= b.read()
+                    b64Image = base64.b64encode(br).decode("utf-8")
+                    url = "data:image/jpg;base64, " + b64Image
+                    txt.append(page.extract_text())
+                    #img = f"<img src='{url}' >"
+                    #display (HTML(img))
+                    ret[url] = 1
+                except:
+                    pass
     ret = [r for r in ret.keys()]
     return dict(images=ret, texts=txt)
 
@@ -45,7 +49,7 @@ def indexImagesFromPDF(file, savedir="/tmp/genai_utils/", verbose =0):
         
         bname = os.path.basename(file)
         sfile = f"{savedir}/{bname}__{i}.png"
-        #os.makedirs(savedir, exist_ok=True)
+        os.makedirs(savedir, exist_ok=True)
         imgd.save(sfile)
         files.append(sfile)
         print(f"Saved {sfile}")
