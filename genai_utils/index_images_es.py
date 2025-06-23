@@ -58,7 +58,7 @@ def indexImagesFromPDF(file, savedir="/tmp/genai_utils/", verbose =0):
             print(ret['texts'][i][0:128])
     return ret, files
     
-def index_directory(directory, outf= {}, savedir="/tmp/genai_utils/", recurse=0):
+def index_directory(directory, outf= {}, savedir="/tmp/genai_utils/", recurse=0, count=10000):
     pngs = glob.glob(os.path.join(directory, '**/*.png') , recursive=recurse)
     jpgs = glob.glob(os.path.join(directory, '**/*.jpg') , recursive=recurse)
     jpes = glob.glob(os.path.join(directory, '**/*.jpeg'), recursive=recurse)
@@ -71,7 +71,10 @@ def index_directory(directory, outf= {}, savedir="/tmp/genai_utils/", recurse=0)
         images.extend(files)
     
     image_paths = [*pngs, *jpgs, *jpes, *images]
+    n = 0
     for image_path in tqdm.tqdm(image_paths):
+        if ( n >= count):
+            break;
         if image_path in outf:
             continue
         with open(image_path, 'rb') as f:
@@ -81,6 +84,7 @@ def index_directory(directory, outf= {}, savedir="/tmp/genai_utils/", recurse=0)
             description = describe_image(image_data)
             print(f"Indexed {image_path}: {description}")
             outf[image_path] = description
+            n += 1
         except Exception as e:
             print(f"Failed to index {image_path}: {e}")
             pass

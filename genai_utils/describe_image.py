@@ -23,6 +23,7 @@ Do not explain how you are describing the image. Do not use any "I" statements.
 """
 
 def describe_image(image_data, prompt=DEFAULT_USER_PROMPT, system=DEFAULT_SYSTEM_PROMPT, model=DEFAULT_MODEL):
+    print(f"Describe image: {model}")
     result = generate(model=model, prompt=prompt, images=[image_data])
     return result['response']
 

@@ -160,7 +160,6 @@ def format(d, show=1):
     return html
 
 # ---------------------------------------------------------------------------------------
-
 @webapi("/gpt/esTextSearch/")
 def esTextSearch(query, k=10, index="test", es_url = ES_URL, es_user=ES_USER, es_pass= ES_PW):
     esclient = Elasticsearch(es_url, basic_auth = (es_user, es_pass))
@@ -212,9 +211,10 @@ def indexFromFolder(folder="", force=0, index="test", recurse=0, just_show=0,
     for f in files:
         bn = os.path.basename(f)
         dn = os.path.dirname(f)
-        marker = f"/tmp/gpt/{dn}/.{bn}.{index}.indexed"
+        marker = f"/tmp/gpt/{index}/{dn}/.{bn}.indexed"
 
         if f.endswith(".indexed") or (os.path.exists( marker) and not force):
+            print(f"Already in cache '{f}' ... ")
             continue;
 
         try:
@@ -230,7 +230,7 @@ def indexFromFolder(folder="", force=0, index="test", recurse=0, just_show=0,
         except Exception as e:
             logger.error(f"{f} failed to index {e}\n================")
             pass
-        
+
     esCountIndex(index=index, es_url=es_url, user=es_user, pw= es_pass)
     return iFiles
 #-----------------------------------------------------------------------------------
