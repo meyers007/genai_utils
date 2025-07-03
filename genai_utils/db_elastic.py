@@ -248,6 +248,7 @@ def addargs(argv=sys.argv):
     p.add_argument('-j', '--just' ,  required=False, default=False, action='store_true', help="Just show - do not index")
     p.add_argument('-r', '--recurse',required=False, default=False, action='store_true', help="Recurse though the folder")
     p.add_argument('-q', '--query',required=False, type=str, default="", help="Search for context")
+    p.add_argument('-d', '--delete',required=False, default=False, action='store_true', help="Delete Index)
 
     sysargs=p.parse_args(argv[1:])
     return sysargs
@@ -257,7 +258,10 @@ if __name__ == '__main__' and not colabexts_utils.inJupyter():
     a = addargs()
     logger.info(f"Indexing  {sysargs}")
 
-    if ( a.query):
+    if ( a.delete):
+        print("Deleting the index: {a.index}")
+        esDeleteIndex(index=a.index, es_url=a.es_url, es_user=a.es_user, es_pass=a.es_pass )
+    elif ( a.query):
         print("Searching for context: {a.query}")
         res0 = esSearchIndex(None, index=a.index, es_url=a.es_url, es_user=a.es_user, es_pass=a.es_pass,  query=a.query)
         res1 = esTextSearch(query=a.query, index=a.index, es_url=a.es_url, es_user=a.es_user, k=5 )
