@@ -200,6 +200,7 @@ def loadES( model="all-minilm:L6-v2", index="", filename = "/Users/e346104/Deskt
     return docs
 
 # ---------------------------------------------------------------------------------------
+MARKER_BASE="/tmp/gpt/"
 def indexFromFolder(folder="", force=0, index="test", recurse=0, just_show=0,
                         es_url=ES_URL, es_user=ES_USER, es_pass= ES_PW, model="all-minilm:L6-v2"):
     folder = os.path.expanduser(folder) + "/**"
@@ -211,9 +212,9 @@ def indexFromFolder(folder="", force=0, index="test", recurse=0, just_show=0,
     for f in files:
         bn = os.path.basename(f)
         dn = os.path.dirname(f)
-        marker = f"/tmp/gpt/{index}/{dn}/.{bn}.indexed"
+        marker = f"{MARKER_BASE}/{index}/{dn}/.{bn}.indexed"
 
-        if f.endswith(".indexed") or (os.path.exists( marker) and not force):
+        if f.startswith(".") or f.endswith(".indexed") or (os.path.exists(marker) and not force):
             print(f"Already in cache '{f}' ... ")
             continue;
 
@@ -259,10 +260,12 @@ if __name__ == '__main__' and not colabexts_utils.inJupyter():
     logger.info(f"Indexing  {sysargs}")
 
     if ( a.delete):
-        print("Deleting the index: {a.index}")
+        print(f"Deleting the index: {a.index}")
         esDeleteIndex(index=a.index, es_url=a.es_url, es_user=a.es_user, es_pass=a.es_pass )
+        marker = f"{MARKER_BASE}/{a.index}/"
+        os.rmdir(marker)
     elif ( a.query):
-        print("Searching for context: {a.query}")
+        print(f"Searching for context: {a.query}")
         res0 = esSearchIndex(None, index=a.index, es_url=a.es_url, es_user=a.es_user, es_pass=a.es_pass,  query=a.query)
         res1 = esTextSearch(query=a.query, index=a.index, es_url=a.es_url, es_user=a.es_user, k=5 )
 
