@@ -238,7 +238,7 @@ sysargs=None
 def addargs(argv=sys.argv):
     global sysargs
     p = argparse.ArgumentParser(f"{os.path.basename(argv[0])}:")
-    p.add_argument('-p', '--path',   type=str, required=True, help="path to look for files")
+    p.add_argument('-p', '--path',   required=False, type=str, default='.', help="path to look for files")
     p.add_argument('-i', '--index',  type=str, required=True, help="Elastic Search index")
     p.add_argument('-m', '--model',  type=str, required=False, default="all-minilm:L6-v2", help="embedding model")
     p.add_argument('-e', '--es_url', type=str, required=False, default=ES_URL,  help="elastic URL")
@@ -247,6 +247,7 @@ def addargs(argv=sys.argv):
     p.add_argument('-f', '--force',  required=False, default=False, action='store_true', help="force")
     p.add_argument('-j', '--just' ,  required=False, default=False, action='store_true', help="Just show - do not index")
     p.add_argument('-r', '--recurse',required=False, default=False, action='store_true', help="Recurse though the folder")
+    p.add_argument('-q', '--query',required=False, type=str, default="", help="Search for context")
 
     sysargs=p.parse_args(argv[1:])
     return sysargs
@@ -256,7 +257,19 @@ if __name__ == '__main__' and not colabexts_utils.inJupyter():
     a = addargs()
     logger.info(f"Indexing  {sysargs}")
 
-    indexFromFolder(folder=a.path, force=a.force, index=a.index, es_url=a.es_url, recurse=a.recurse,
+    if ( a.query):
+        print("Searching for context: {a.query}")
+            res0 = esSearchIndex(None, index=es_index, es_url=es_url, es_user=es_user, es_pass=es_pass,  query=q)
+            res1 = esTextSearch(query=q, index=es_index, es_url=es_url, es_user=es_user, k=5 )
+
+            for d in res0:
+                s = f"src: {d['metadata']['source']}\n{d['page_content']}\n{'-'*80}\n"
+                print(s)
+            for d in res1:
+                s = f"src: {d['metadata']['source']}\n{d['page_content']}\n{'-'*80}\n"
+                print(s)
+    else:
+        indexFromFolder(folder=a.path, force=a.force, index=a.index, es_url=a.es_url, recurse=a.recurse,
                         es_user=a.es_user, es_pass= a.es_pass, model=a.model)
 
 #    indexFromFolder(sys.argv[1])
