@@ -248,7 +248,7 @@ def addargs(argv=sys.argv):
     p.add_argument('-j', '--just' ,  required=False, default=False, action='store_true', help="Just show - do not index")
     p.add_argument('-r', '--recurse',required=False, default=False, action='store_true', help="Recurse though the folder")
     p.add_argument('-q', '--query',required=False, type=str, default="", help="Search for context")
-    p.add_argument('-d', '--delete',required=False, default=False, action='store_true', help="Delete Index)
+    p.add_argument('-d', '--delete',required=False, default=False, action='store_true', help="Delete Index")
 
     sysargs=p.parse_args(argv[1:])
     return sysargs
