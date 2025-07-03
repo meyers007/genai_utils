@@ -1,6 +1,11 @@
 #  Install and setup Ollama
 
-To setup Ollama for public access, edit as follows:
+## Install Ollama from the web as usual.
+
+    curl -fsSL https://ollama.com/install.sh | sh
+
+
+## To setup Ollama for public access, edit as follows:
 
 ```
 vi /etc/systemd/system/ollama.service
