@@ -1,6 +1,6 @@
 from setuptools import setup
 
-version=0.11400000000000002
+version=0.11500000000000002
 
 setup(name='genai_utils', 
       version=str(version), 
@@ -12,7 +12,7 @@ setup(name='genai_utils',
       packages = ['genai_utils'],
       package_data={'genai_utils':['*']},
       zip_safe=False,
-      install_requires=['torch'],
+      install_requires=[],
       classifiers=[
           # How mature is this project? Common values are
           #   3 - Alpha
