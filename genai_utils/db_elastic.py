@@ -244,7 +244,7 @@ def addargs(argv=sys.argv):
     p.add_argument('-m', '--model',  type=str, required=False, default="all-minilm:L6-v2", 
                     help="embedding model; defaults to local ollama model 'all-minilm:L6-v2' ")
     p.add_argument('-e', '--es_url', type=str, required=False, default=ES_URL,  help=f"elastic URL default: {ES_URL}")
-    p.add_argument('-u', '--es_user',type=str, required=False, default=ES_USER, help=f"elastic user. default: {ES_URL}")
+    p.add_argument('-u', '--es_user',type=str, required=False, default=ES_USER, help=f"elastic user. default: {ES_USER}")
     p.add_argument('-w', '--es_pass',type=str, required=False, default=ES_PW,   help=f"elastic password. default: {ES_PW}")
     p.add_argument('-f', '--force',  required=False, default=False, action='store_true', 
                    help="force and reindex - the files indexed will be ignored otherwise")
