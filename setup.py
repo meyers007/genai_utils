@@ -1,6 +1,6 @@
 from setuptools import setup
 
-version=0.11700000000000002
+version=0.11800000000000002
 
 setup(name='genai_utils', 
       version=str(version), 
