@@ -200,7 +200,7 @@ def loadES( model="all-minilm:L6-v2", index="", filename = "/Users/e346104/Deskt
     return docs
 
 # ---------------------------------------------------------------------------------------
-MARKER_BASE="/tmp/gpt/"
+MARKER_BASE=f"/tmp/gpt/"
 def indexFromFolder(folder="", force=0, index="test", recurse=0, just_show=0,
                         es_url=ES_URL, es_user=ES_USER, es_pass= ES_PW, model="all-minilm:L6-v2"):
     folder = os.path.expanduser(folder) + "/**"
@@ -223,8 +223,8 @@ def indexFromFolder(folder="", force=0, index="test", recurse=0, just_show=0,
                 pass
                 logger.info(f"Indexing '{f}' {es_url}")        
                 loadES(model, index, f, es_url, es_user, es_pass)
-                os.makedirs(os.path.dirname(marker), exist_ok=True)
-                open(marker, "w").write("")
+                os.makedirs(os.path.dirname(marker, mode=0777), exist_ok=True)
+                open(marker, "w", mode=0o777).write("")
                 iFiles.append(f)
             else:
                 print(f"Not indexing '{f}'\n======================")
@@ -241,14 +241,17 @@ def addargs(argv=sys.argv):
     p = argparse.ArgumentParser(f"{os.path.basename(argv[0])}:")
     p.add_argument('-p', '--path',   required=False, type=str, default='.', help="path to look for files")
     p.add_argument('-i', '--index',  type=str, required=True, help="Elastic Search index")
-    p.add_argument('-m', '--model',  type=str, required=False, default="all-minilm:L6-v2", help="embedding model")
-    p.add_argument('-e', '--es_url', type=str, required=False, default=ES_URL,  help="elastic URL")
-    p.add_argument('-u', '--es_user',type=str, required=False, default=ES_USER, help="elastic user")
-    p.add_argument('-w', '--es_pass',type=str, required=False, default=ES_PW,   help="elastic password")
-    p.add_argument('-f', '--force',  required=False, default=False, action='store_true', help="force")
+    p.add_argument('-m', '--model',  type=str, required=False, default="all-minilm:L6-v2", 
+                    help="embedding model; defaults to local ollama model 'all-minilm:L6-v2' ")
+    p.add_argument('-e', '--es_url', type=str, required=False, default=ES_URL,  help=f"elastic URL default: {ES_URL}")
+    p.add_argument('-u', '--es_user',type=str, required=False, default=ES_USER, help=f"elastic user. default: {ES_URL}")
+    p.add_argument('-w', '--es_pass',type=str, required=False, default=ES_PW,   help=f"elastic password. default: {ES_PW}")
+    p.add_argument('-f', '--force',  required=False, default=False, action='store_true', 
+                   help="force and reindex - the files indexed will be ignored otherwise")
     p.add_argument('-j', '--just' ,  required=False, default=False, action='store_true', help="Just show - do not index")
-    p.add_argument('-r', '--recurse',required=False, default=False, action='store_true', help="Recurse though the folder")
-    p.add_argument('-q', '--query',required=False, type=str, default="", help="Search for context")
+    p.add_argument('-r', '--recurse',required=False, default=False, action='store_true', help="Recurse through the folder")
+    p.add_argument('-q', '--query',required=False, type=str, default="", 
+                   help="Search for context - instead of indexing - this will search the index")
     p.add_argument('-d', '--delete',required=False, default=False, action='store_true', help="Delete Index")
 
     sysargs=p.parse_args(argv[1:])
