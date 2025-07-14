@@ -200,7 +200,8 @@ def loadES( model="all-minilm:L6-v2", index="", filename = "/Users/e346104/Deskt
     return docs
 
 # ---------------------------------------------------------------------------------------
-MARKER_BASE=f"/tmp/gpt/"
+USER=os.environ.get("USER","any")
+MARKER_BASE=f"/tmp/{USER}/gpt/"
 def indexFromFolder(folder="", force=0, index="test", recurse=0, just_show=0,
                         es_url=ES_URL, es_user=ES_USER, es_pass= ES_PW, model="all-minilm:L6-v2"):
     folder = os.path.expanduser(folder) + "/**"
