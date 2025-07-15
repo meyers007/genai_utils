@@ -19,6 +19,7 @@ from elasticsearch import Elasticsearch
 from mangorest.mango import webapi
 from genai_utils import pdf_parser
 from genai_utils import extract_docs
+import shutil 
 
 logger = logging.getLogger( "gpt" )
 
@@ -268,7 +269,7 @@ if __name__ == '__main__' and not colabexts_utils.inJupyter():
         esDeleteIndex(index=a.index, es_url=a.es_url, es_user=a.es_user, es_pass=a.es_pass )
         marker = f"{MARKER_BASE}/{a.index}/"
         if os.path.exists(marker):
-            os.rmdir(marker)
+            shutils.rmtree(marker)
     elif ( a.query):
         print(f"Searching for context: {a.query}")
         res0 = esSearchIndex(None, index=a.index, es_url=a.es_url, es_user=a.es_user, es_pass=a.es_pass,  query=a.query)
