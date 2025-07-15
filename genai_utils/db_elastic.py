@@ -224,7 +224,7 @@ def indexFromFolder(folder="", force=0, index="test", recurse=0, just_show=0,
                 pass
                 logger.info(f"Indexing '{f}' {es_url}")        
                 loadES(model, index, f, es_url, es_user, es_pass)
-                os.makedirs(os.path.dirname(marker, mode=0o777), exist_ok=True)
+                os.makedirs(os.path.dirname(marker), exist_ok=True)
                 open(marker, "w", mode=0o777).write("")
                 iFiles.append(f)
             else:

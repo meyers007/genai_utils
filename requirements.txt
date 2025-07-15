@@ -1,3 +1,11 @@
 #pip install -r requirements.txt
 #
 torch
+langchain_ollama
+langchain_elasticsearch
+mangorest
+django-proxy-1.3.0
+pdfplumber
+python-docx 
+exceptions
+colabexts
