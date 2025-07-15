@@ -267,7 +267,7 @@ if __name__ == '__main__' and not colabexts_utils.inJupyter():
         print(f"Deleting the index: {a.index}")
         esDeleteIndex(index=a.index, es_url=a.es_url, es_user=a.es_user, es_pass=a.es_pass )
         marker = f"{MARKER_BASE}/{a.index}/"
-        if os.path.exists(marker)
+        if os.path.exists(marker):
             os.rmdir(marker)
     elif ( a.query):
         print(f"Searching for context: {a.query}")
