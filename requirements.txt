@@ -4,7 +4,7 @@ torch
 langchain_ollama
 langchain_elasticsearch
 mangorest
-django-proxy-1.3.0
+django-proxy
 pdfplumber
 python-docx 
 exceptions
