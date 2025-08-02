@@ -216,7 +216,7 @@ def indexFromFolder(folder="", force=0, index="test", recurse=0, just_show=0,
         dn = os.path.dirname(f)
         marker = f"{MARKER_BASE}/{index}/{dn}/.{bn}.indexed"
 
-        if f.startswith(".") or f.endswith(".indexed") or (os.path.exists(marker) and not force):
+        if f.endswith(".indexed") or (os.path.exists(marker) and not force):
             print(f"Already in cache '{f}' ... ")
             continue;
 
@@ -226,8 +226,12 @@ def indexFromFolder(folder="", force=0, index="test", recurse=0, just_show=0,
                 logger.info(f"Indexing '{f}' {es_url}")        
                 loadES(model, index, f, es_url, es_user, es_pass)
                 os.makedirs(os.path.dirname(marker), exist_ok=True)
-                open(marker, "w", mode=0o777).write("")
                 iFiles.append(f)
+                try:
+                    open(marker, "w", mode=0o777).write("")
+                except:
+                    logger.error(f"{marker} Could not write to cache\n================")
+                    pass
             else:
                 print(f"Not indexing '{f}'\n======================")
         except Exception as e:
@@ -268,8 +272,11 @@ if __name__ == '__main__' and not colabexts_utils.inJupyter():
         print(f"Deleting the index: {a.index}")
         esDeleteIndex(index=a.index, es_url=a.es_url, es_user=a.es_user, es_pass=a.es_pass )
         marker = f"{MARKER_BASE}/{a.index}/"
-        if os.path.exists(marker):
-            shutil.rmtree(marker)
+        try:
+            if os.path.exists(marker):
+                shutil.rmtree(marker)
+        except:
+            pass
     elif ( a.query):
         print(f"Searching for context: {a.query}")
         res0 = esSearchIndex(None, index=a.index, es_url=a.es_url, es_user=a.es_user, es_pass=a.es_pass,  query=a.query)

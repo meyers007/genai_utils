@@ -9,3 +9,4 @@ pdfplumber
 python-docx 
 exceptions
 colabexts
+langchain_text_splitters
