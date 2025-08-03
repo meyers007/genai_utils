@@ -79,7 +79,7 @@ def add_to_es( docs: list[Document], es_cnx: dict, index: str, embed, strategy= 
         for d in docsWithID:
             h = hashlib.md5(d.page_content.encode())
             d.id = h.hexdigest()
-        
+
         vectorstore = ElasticsearchStore.from_documents(
             documents=docsWithID,
             embedding=embed,
@@ -101,11 +101,11 @@ def es_retriever( es_cnx: dict, index: str, embed, strategy="hnsw", k= 10 ):
 
 def esVectorSearch( retreiver, q, k=10):
         ret = retreiver.as_retriever(search_kwargs={"k": k}).invoke(q)
-        
+
         h = {r.page_content:r for r in ret}
         if len(h) != len(ret):
             ret = [v for v in h.values()]
-            
+
         return ret
 
 @webapi("/gpt/esSearchIndex/")
@@ -113,7 +113,7 @@ def esSearchIndex(request, index, query, model="all-minilm:L6-v2", user="", es_u
                     es_user=ES_URL, es_pass=ES_PW, k=10, rank=1, **kwargs):
 
     #print(f"\n{locals()}\n")
-        
+
     if (not es_url):
         es = dict(es_url= ES_URL, es_user=ES_USER, es_password=ES_PW)
     else:
@@ -122,7 +122,7 @@ def esSearchIndex(request, index, query, model="all-minilm:L6-v2", user="", es_u
     #model = "llama3.2" #lets force the embedding for now
     embed = getEmbedding(model=model) 
 
-    
+
     #if not os.path.exists(os.path.expanduser("~/.cache/RERANKER/")):
     #    print(f"**** Ranker cache does not exist ****")
     #    return ret
@@ -139,7 +139,7 @@ def esSearchIndex(request, index, query, model="all-minilm:L6-v2", user="", es_u
     h = {r.page_content: r for r in docs}
     if len(h) != len(docs):
         docs = [v for v in h.values()]
-    
+
     ret = []
     for d in docs:
         ret.append(dict(page_content=d.page_content, metadata=d.metadata))
@@ -176,7 +176,7 @@ def esTextSearch(query, k=10, index="test", es_url = ES_URL, es_user=ES_USER, es
 # ---------------------------------------------------------------------------------------
 def rerank(q, ret):
     from flashrank import (Ranker, RerankRequest,)
-    
+
     ranker = Ranker("ms-marco-MiniLM-L-12-v2", os.path.expanduser("~/.cache/RERANKER/"))
     rerankrequest = RerankRequest(
         query=q, passages=[{"text": d.page_content, "metadata": d.metadata} for d in ret]
@@ -188,10 +188,10 @@ def rerank(q, ret):
 # can be multi tasked 
 def loadES( model="all-minilm:L6-v2", index="", filename = "/Users/e346104/Desktop/data/LLM/sample.pdf",
            es_url=ES_URL , es_user=ES_USER, es_pass=ES_PW, docs=[] ):
-    
+
     if(not docs and filename):
         docs = extract_docs.extractDocs(file=filename)
-        
+
     if (not docs):
         return docs
     embed= getEmbedding(model)
@@ -214,7 +214,7 @@ def indexFromFolder(folder="", force=0, index="test", recurse=0, just_show=0,
     for f in files:
         bn = os.path.basename(f)
         dn = os.path.dirname(f)
-        marker = f"{MARKER_BASE}/{index}/{dn}/.{bn}.indexed"
+        marker = f"{MARKER_BASE}/{index}/{dn}/{bn}.indexed"
 
         if f.endswith(".indexed") or (os.path.exists(marker) and not force):
             print(f"Already in cache '{f}' ... ")
@@ -228,9 +228,10 @@ def indexFromFolder(folder="", force=0, index="test", recurse=0, just_show=0,
                 os.makedirs(os.path.dirname(marker), exist_ok=True)
                 iFiles.append(f)
                 try:
-                    open(marker, "w", mode=0o777).write("")
+                    open(marker, "w").write("")
+                    os.chmod(marker, 0o666)
                 except:
-                    logger.error(f"{marker} Could not write to cache\n================")
+                    logger.warning(f"{marker} Could not cache\n================")
                     pass
             else:
                 print(f"Not indexing '{f}'\n======================")
@@ -249,13 +250,14 @@ def addargs(argv=sys.argv):
     p.add_argument('-i', '--index',  type=str, required=True, help="Elastic Search index")
     p.add_argument('-m', '--model',  type=str, required=False, default="all-minilm:L6-v2", 
                     help="embedding model; defaults to local ollama model 'all-minilm:L6-v2' ")
-    p.add_argument('-e', '--es_url', type=str, required=False, default=ES_URL,  help=f"elastic URL default: {ES_URL}")
-    p.add_argument('-u', '--es_user',type=str, required=False, default=ES_USER, help=f"elastic user. default: {ES_USER}")
-    p.add_argument('-w', '--es_pass',type=str, required=False, default=ES_PW,   help=f"elastic password. default: {ES_PW}")
+    p.add_argument('-e', '--es_url', type=str, required=False, default=ES_URL,  help=f"es URL default: {ES_URL}")
+    p.add_argument('-u', '--es_user',type=str, required=False, default=ES_USER, help=f"es user. default: {ES_USER}")
+    p.add_argument('-w', '--es_pass',type=str, required=False, default=ES_PW,   help=f"es password. default: {ES_PW}")
+    p.add_argument('-s', '--es_start',required=False, default=False, action='store_true', help="Start ES container")
     p.add_argument('-f', '--force',  required=False, default=False, action='store_true', 
                    help="force and reindex - the files indexed will be ignored otherwise")
-    p.add_argument('-j', '--just' ,  required=False, default=False, action='store_true', help="Just show - do not index")
-    p.add_argument('-r', '--recurse',required=False, default=False, action='store_true', help="Recurse through the folder")
+    p.add_argument('-j', '--just' ,  required=False, default=False, action='store_true', help="Show - do not index")
+    p.add_argument('-r', '--recurse',required=False, default=False, action='store_true', help="Recurse  the folder")
     p.add_argument('-q', '--query',required=False, type=str, default="", 
                    help="Search for context - instead of indexing - this will search the index")
     p.add_argument('-d', '--delete',required=False, default=False, action='store_true', help="Delete Index")
@@ -277,6 +279,17 @@ if __name__ == '__main__' and not colabexts_utils.inJupyter():
                 shutil.rmtree(marker)
         except:
             pass
+    elif ( a.es_start):
+        from pathlib import Path
+        import importlib.resources
+
+        print(f"# Script to start continer locally!")
+        try:
+            p = importlib.resources.files()
+            f = os.path.join(p, 'rundockeres.sh')
+            print(f"RUN:\nsource {f}" )
+        except FileNotFoundError:
+            print("File 'rundockeres.sh' not found within the package.")
     elif ( a.query):
         print(f"Searching for context: {a.query}")
         res0 = esSearchIndex(None, index=a.index, es_url=a.es_url, es_user=a.es_user, es_pass=a.es_pass,  query=a.query)
