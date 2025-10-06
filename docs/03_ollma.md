@@ -37,3 +37,9 @@ WantedBy=default.target
 
 
 ```
+
+After you make the change, restart by running
+
+`
+sudo systemctl restart ollama
+`
